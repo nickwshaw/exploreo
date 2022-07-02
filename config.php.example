@@ -1,0 +1,8 @@
+<?php
+/**
+* Exploreo
+*/
+define('VILLA_API_USERNAME', 'un');
+define('VILLA_API_PASSWORD', 'pw');
+define('ALGOLIA_APP_ID', 'id');
+define('ALGOLIA_API_KEY', 'key');
