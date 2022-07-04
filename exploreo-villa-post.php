@@ -9,7 +9,10 @@
   Author URI:
 */
 
-require_once('VillaMetaData.php');
+use Exploreo\VillaMetaData;
+
+require_once('src/VillaMetaData.php');
+require_once('config.php');
 
 class ExploreoVilla {
     public const VILLA_POST_TYPE = 'villas';

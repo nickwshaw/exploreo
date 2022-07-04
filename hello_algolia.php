@@ -10,7 +10,7 @@ $client = SearchClient::create(ALGOLIA_APP_ID, ALGOLIA_API_KEY);
 
 # Create a new index and add a record
 $index = $client->initIndex("test_index");
-$record = ["objectID" => 1, "name" => "test_record"];
+$record = ["objectID" => 1, "name" => "test_record_x"];
 $index->saveObject($record)->wait();
 
 # Search the index and print the results
