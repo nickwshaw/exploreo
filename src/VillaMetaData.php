@@ -5,8 +5,13 @@ namespace Exploreo;
 class VillaMetaData
 {
 
+    /**
+     * List of houses
+     */
     public const META_KEY_HOUSE_CODE = 'house_code';
     public const API_KEY_HOUSE_CODE = 'HouseCode';
+    public const API_REAL_OR_TEST = 'RealOrTest';
+
     /**
      * BasicInformation
      */
@@ -29,6 +34,7 @@ class VillaMetaData
     public const META_KEY_LATITUDE = 'villa_latitude';
     public const META_KEY_LONGITUDE = 'villa_longitude';
 
+    public const API_KEY_NAME = 'Name';
     public const API_KEY_MAX_NUMBER_OF_PERSONS = 'MaxNumberOfPersons';
     public const API_KEY_EXCEED_MAX_NUMBER_OF_BABIES = 'ExceedMaxNumberOfBabies';
     public const API_KEY_MAX_NUMBER_OF_PETS = 'MaxNumberOfPets';

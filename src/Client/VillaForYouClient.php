@@ -44,7 +44,8 @@ class VillaForYouClient
                 'json' => $data
             ]
         );
-        return  json_decode((string) $response->getBody(), true);
+        $body = json_decode((string) $response->getBody(), true);
+        return $body['result'];
     }
 
     public function getDataOfHouses(array $houseIds): array
@@ -72,7 +73,8 @@ class VillaForYouClient
                 'json' => $data
             ]
         );
-        return  json_decode((string) $response->getBody(), true);
+        $body = json_decode((string) $response->getBody(), true);
+        return $body['result'];
     }
 
 }
