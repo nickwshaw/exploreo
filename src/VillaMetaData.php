@@ -59,9 +59,14 @@ class VillaMetaData
      */
     public const META_KEY_REMARKS = 'villa_remarks';
     public const META_KEY_LAYOUT = 'villa_layout';
+    public const META_KEY_DESCRIPTION_TITLE = 'villa_description_title';
+    public const META_KEY_DESCRIPTION = 'villa_description';
 
     public const API_KEY_REMARKS = 'Remarks';
     public const API_KEY_LAYOUT = 'Layout';
+    public const API_KEY_DESCRIPTION_TITLE = 'Title';
+    public const API_KEY_DESCRIPTION = 'Description';
+    public const API_KEY_LANGUAGE = 'Language';
 
     /**
      * Media

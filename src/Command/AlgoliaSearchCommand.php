@@ -1,31 +1,27 @@
 <?php
-// src/Command/CreateUserCommand.php
+
 namespace Exploreo\Command;
 
-use Exploreo\Client\VillaForYouClient;
-use Exploreo\Service\AlgoliaIndexService;
-use Symfony\Component\Console\Attribute\AsCommand;
+use Exploreo\Service\AlgoliaSearchService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-// the name of the command is what users type after "php bin/console"
-// #[AsCommand(name: 'app:create-user')]
-class AlgoliaVillaImport extends Command
+class AlgoliaSearchCommand extends Command
 {
-    private $indexService;
+    private AlgoliaSearchService $searchService;
 
-    public function __construct(AlgoliaIndexService $indexService, string $name = null)
+    public function __construct(AlgoliaSearchService $searchService, string $name = null)
     {
-        $this->indexService = $indexService;
+        $this->searchService = $searchService;
         parent::__construct($name);
     }
 
-    protected static $defaultName = 'exploreo:import-villas';
+    protected static $defaultName = 'exploreo:search-villas:get-all';
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->indexService->updateIndex();
+        $this->searchService->getAll();
         // ... put here the code to create the user
 
         // this method must return an integer number with the "exit status code"

@@ -11,6 +11,8 @@ use GuzzleHttp\Client;
 use Exploreo\Client\VillaForYouClient;
 use Exploreo\Service\AlgoliaIndexService;
 use Algolia\AlgoliaSearch\SearchClient;
+use Exploreo\Command\AlgoliaSearchCommand;
+use Exploreo\Service\AlgoliaSearchService;
 
 $dotenv = new Dotenv();
 $dotenv->usePutenv()->load(__DIR__.'/.env');
@@ -27,6 +29,15 @@ $application->add(
                 getenv('VILLA_API_PASSWORD')
             ),
             SearchClient::create(getenv('ALGOLIA_APP_ID'), getenv('ALGOLIA_API_KEY'))
+        )
+    )
+);
+
+$application->add(
+    new AlgoliaSearchCommand(
+        new AlgoliaSearchService(
+            SearchClient::create(getenv('ALGOLIA_APP_ID'), getenv('ALGOLIA_API_KEY')),
+            getenv('ANGOLIA_EN_INDEX')
         )
     )
 );

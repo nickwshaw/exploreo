@@ -1,6 +1,7 @@
 <?php
 
 use Algolia\AlgoliaSearch\SearchClient;
+use Exploreo\Service\AlgoliaSearchService;
 
 /**
  * Plugin Name:     Algolia Custom Integration
@@ -17,8 +18,9 @@ require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/wp-cli.php';
 
 global $algolia;
+global $exploreoSearch;
+$exploreoSearch= new AlgoliaSearchService(
+    SearchClient::create($_ENV['ALGOLIA_APP_ID'], $_ENV['ALGOLIA_API_KEY'])
+);
 
-$algolia = SearchClient::create(ALGOLIA_APP_ID, ALGOLIA_API_KEY);
-
-
-
+$algolia = SearchClient::create($_ENV['ALGOLIA_APP_ID'], $_ENV['ALGOLIA_API_KEY']);

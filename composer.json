@@ -6,7 +6,8 @@
         "symfony/console": "5.4.10",
         "symfony/var-dumper": "5.4.9",
         "symfony/dotenv": "5.4.5",
-        "ext-json": "*"
+        "ext-json": "*",
+        "vlucas/phpdotenv": "^5.4"
     },
     "autoload": {
         "psr-4": {
