@@ -2,6 +2,7 @@
 
 use Algolia\AlgoliaSearch\SearchClient;
 use Exploreo\Service\AlgoliaSearchService;
+use Dotenv\Dotenv;
 
 /**
  * Plugin Name:     Algolia Custom Integration
@@ -17,9 +18,14 @@ use Exploreo\Service\AlgoliaSearchService;
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/wp-cli.php';
 
+/**
+ * Exploreo
+ */
+(\Dotenv\Dotenv::createImmutable(__DIR__))->load();
+
 global $algolia;
 global $exploreoSearch;
-$exploreoSearch= new AlgoliaSearchService(
+$exploreoSearch = new AlgoliaSearchService(
     SearchClient::create($_ENV['ALGOLIA_APP_ID'], $_ENV['ALGOLIA_API_KEY'])
 );
 

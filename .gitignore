@@ -1,3 +1,5 @@
 config.php
 vendor
 .env
+.DS_Store
+.idea
