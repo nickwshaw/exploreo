@@ -26,6 +26,7 @@ class AlgoliaIndexService
 
     public function updateIndex()
     {
+        // TODO move batch getting of data into villasClient
         //dump($this->villasClient->getListOfHouses());
         $houseCodes = [];
         $index = 0;
@@ -52,10 +53,10 @@ class AlgoliaIndexService
                 //dump($houseCodes);die();
             }
         }
-        
+
         // TODO merge remaining houses
         $houseDetails = array_merge($houseDetails, $this->filterDetails($this->villasClient->getDataOfHouses($houseCodes[$index])));
-        
+
         //dump($houseDetails[0]);
         dump(count($houseDetails));
         $index = $this->angoliaClient->initIndex("test_index");

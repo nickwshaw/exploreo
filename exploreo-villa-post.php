@@ -10,6 +10,7 @@
 */
 
 use Exploreo\VillaMetaData;
+use Exploreo\Exception\VillaNotFoundException;
 
 require_once('src/VillaMetaData.php');
 require_once('config.php');
@@ -41,6 +42,8 @@ class ExploreoVilla {
      */
     private $villaCodesInDb;
 
+    private $latestUpdateVersion;
+
     private function __construct()
     {
 
@@ -48,7 +51,14 @@ class ExploreoVilla {
 
         $this->wpdb = $wpdb;
 
+        // Create the villa post type on install
         add_action('init', array($this, 'createVillaPostType'));
+
+        // Create a hook for import cron job
+        add_action('exploreo_villas_import', array($this, 'importVillas'));
+
+        // Create a hook for update cron job
+        add_action('exploreo_villas_update', array($this, 'updateVillasCron'));
 
         /**
          * Show 'insert posts' button on backend
@@ -62,36 +72,177 @@ class ExploreoVilla {
             echo "</div>";
         });
 
-        add_action('admin_init', function() {
+        add_filter('cron_schedules', array($this, 'villaImportInterval'));
 
-            if (!isset($_GET['insert_villa_posts'])) {
-                return;
-            }
-            $count = 0;
+        function example_add_cron_interval( $schedules ) {
+            $schedules['five_seconds'] = array(
+                'interval' => 5,
+                'display'  => esc_html__( 'Every Five Seconds' ), );
+            return $schedules;
+        }
 
+    }
 
-            $this->villaCodesInDb = $this->wpdb->get_col(
-            'SELECT meta_value from wp_postmeta WHERE meta_key = "' . VillaMetaData::META_KEY_HOUSE_CODE . '"'
+    public function villaImportInterval(array $schedules)
+    {
+        $schedules['5 minutes'] = array(
+            'interval' => 60 * 5,
+            'display'  => esc_html__('Every Five Minutes'),);
+        return $schedules;
+    }
+
+    public function getLatestUpdateVersion(): int
+    {
+        if (is_null($this->latestUpdateVersion)) {
+            $result = $this->wpdb->get_row('
+                select * from wp_postmeta
+                where meta_key = "' . VillaMetaData::META_KEY_UPDATE_VERSION . '"
+                order by cast(meta_value as unsigned) desc limit 1
+            ');
+            $this->latestUpdateVersion = (int) $result->meta_value;
+        }
+
+        return $this->latestUpdateVersion;
+    }
+
+    public function updateVillasCron()
+    {
+        $start = microtime(true);
+        // Get villas with lowest update version
+        $results = $this->wpdb->get_results('
+            select * from wp_postmeta
+            where meta_key = "' . VillaMetaData::META_KEY_UPDATE_VERSION . '"
+            order by cast(meta_value as unsigned) asc limit 100
+        ');
+
+        error_log('Got ' . count($results));
+        error_log('first post: ' . $results[0]->post_id);
+
+        $villasUpdatedCount = 0;
+
+        foreach ($results as $row) {
+            $checksum = $this->wpdb->get_col('
+                SELECT meta_value
+                from wp_postmeta
+                where post_id = ' . $row->post_id . '
+                and meta_key = "villa_checksum"'
             );
 
-            foreach ($this->getListOfVillas() as $villa)
-            {
-                if (in_array($villa['HouseCode'], $this->villaCodesInDb) || $villa['RealOrTest'] == 'Test') {
-                    // Villa has already been imported or a test villa
-                    continue;
-                }
-                // Limit number of imports for now
-                if ($count > 1) {
-                    exit;
-                }
+            $houseCode = $this->wpdb->get_col('
+                SELECT meta_value
+                from wp_postmeta
+                where post_id = ' . $row->post_id . '
+                and meta_key = "' . VillaMetaData::META_KEY_HOUSE_CODE . '"'
+            );
+
+            if (empty($houseCode)) {
+                wp_delete_post($row->post_id, true);
+                error_log(sprintf('No house code meta_data found for post id: %s', $row->post_id));
+                continue;
+            }
+
+            $postsWithHouseCode = $this->wpdb->get_col('
+                SELECT meta_value
+                from wp_postmeta
+                where meta_value = "' . $houseCode[0] . '"
+                and meta_key = "' . VillaMetaData::META_KEY_HOUSE_CODE . '"'
+            );
+
+            // Delete duplicates
+            if (count($postsWithHouseCode) > 1) {
+                wp_delete_post($row->post_id, true);
+                error_log(sprintf(
+                    'Deleted villa %s with post id %s as it is a duplicate',
+                    $houseCode[0],
+                    $row->post_id
+                ));
+                continue;
+            }
+
+            try {
+                // Get villa from API and do checksum check.
+                $villaPostData = $this->prepareVillaPostData($this->getVillaDetails($houseCode[0]));
+            } catch (VillaNotFoundException $exception) {
+                // No longer in API. Delete post.
+                wp_delete_post($row->post_id, true);
+                error_log(sprintf(
+                    'Deleted villa %s with post id %s as it no longer exists in the VFY API',
+                    $houseCode[0],
+                    $row->post_id
+                ));
+                continue;
+            }
+
+            if (serialize($villaPostData) !== $checksum[0]) {
+                error_log(sprintf('Villa data changed. Update required for post id: %s', $row->post_id));
+                $this->updateVilla($row->post_id, $villaPostData);
+                $villasUpdatedCount++;
+            }
+
+            // Increment version
+            $version = (int) $row->meta_value;
+            $version++;
+            update_post_meta(
+                $row->post_id,
+                VillaMetaData::META_KEY_UPDATE_VERSION,
+                (string) $version
+            );
+        }
+
+        $end = microtime(true);
+        $elapsed = round($end-$start, 2);
+
+        error_log('Updated ' . $villasUpdatedCount . ' villas');
+        error_log('Update time: ' . $elapsed);
+    }
+
+
+
+    public function importVillas()
+    {
+        $start = microtime(true);
+//        if (!isset($_GET['insert_villa_posts'])) {
+//            return;
+//        }
+        $count = 0;
+
+        $this->villaCodesInDb = $this->wpdb->get_col(
+            'SELECT meta_value from wp_postmeta WHERE meta_key = "' . VillaMetaData::META_KEY_HOUSE_CODE . '"'
+        );
+
+        $villaCodesFromApi = [];
+        foreach ($this->getListOfVillas() as $villa)
+        {
+
+            if ($villa['RealOrTest'] != 'Test') {
+                $villaCodesFromApi[] = $villa['HouseCode'];
+            } else {
+                // Not interested in test villas
+                continue;
+            }
+
+            if (in_array($villa['HouseCode'], $this->villaCodesInDb)) {
+                continue;
+            }
+            // Limit number of imports for now
+            if ($count > 100) {
+                continue;
+            }
+            try {
                 if ($this->insertVillaPost($this->getVillaDetails($villa['HouseCode']))) {
                     $count++;
                 }
-
+            } catch (RuntimeException $exception) {
+                error_log(sprintf('Error importing villas. Reason: %s', $exception->getMessage()));
             }
-            echo 'DONE!';
-            //var_dump($this->getVillaDetails('AT.5360.01'));
-        });
+
+        }
+        error_log('Number of villas imported: ' . $count);
+        error_log('Villas from API: ' . count($villaCodesFromApi));
+        error_log('Number of villas in db: ' . count($this->villaCodesInDb));
+        $end = microtime(true);
+        $elapsed = round($end-$start, 2);
+        error_log("Import time: $elapsed");
 
     }
 
@@ -102,24 +253,54 @@ class ExploreoVilla {
         return self::$instance;
     }
 
-    private function insertVillaPost(array $villaDetails): ?int
+    private function prepareVillaPostData(array $villaDetails): array
     {
-        $houseCode = $villaDetails['HouseCode'];
-        $basicInfo = $villaDetails[VillaMetaData::API_METHOD_BASIC_INFORMATION];
-        $description = $villaDetails[VillaMetaData::API_METHOD_DESCRIPTION];
-        $media = $villaDetails[VillaMetaData::API_METHOD_MEDIA][0];
+        $villaData = [];
+        $villaData['houseCode'] = $villaDetails['HouseCode'];
+        $villaData['basicInfo'] = $villaDetails[VillaMetaData::API_METHOD_BASIC_INFORMATION];
+        $villaData['media'] = $villaDetails[VillaMetaData::API_METHOD_MEDIA][0];
 
-        $englishDescription = [];
-
-        foreach ($description as $language) {
+        foreach ($villaDetails[VillaMetaData::API_METHOD_DESCRIPTION] as $language) {
             if ($language['Language'] == 'EN') {
-                $englishDescription = $language;
+                $villaData['description'] = $language['Description'];
             }
         }
 
+        return $villaData;
+    }
+
+    public function updateVilla(int $postId, array $villaData)
+    {
         $postData = [
-            "post_title" => $basicInfo['Name'],
-            "post_content" => $englishDescription['Description'],
+            "ID" => $postId,
+            "post_title" => $villaData['basicInfo']['Name'],
+            "post_content" => $villaData['description'],
+        ];
+        wp_insert_post($postData);
+
+        update_post_meta($postId, VillaMetaData::META_KEY_CHECKSUM, $villaData);
+
+        foreach (VillaMetaData::getBasicInformationMetaDataKeys() as $apiKey => $metaDataKey) {
+            update_post_meta($postId, $metaDataKey, $villaData['basicInfo'][$apiKey]);
+        }
+
+        update_post_meta(
+            $postId,
+            VillaMetaData::META_KEY_MEDIA_PHOTOS,
+            $villaData['media'][VillaMetaData::API_KEY_MEDIA_PHOTOS]
+        );
+    }
+
+
+    private function insertVillaPost(array $villaDetails): ?int
+    {
+        $villaData = $this->prepareVillaPostData($villaDetails);
+        //$checksum = serialize($villaData);
+        //error_log('checksum: ' . $checksum);
+
+        $postData = [
+            "post_title" => $villaData['basicInfo']['Name'],
+            "post_content" => $villaData['description'],
             "post_type" => self::VILLA_POST_TYPE,
             "post_status" => "publish"
         ];
@@ -128,16 +309,25 @@ class ExploreoVilla {
 
         // Insert custom fields
 
-        update_post_meta($id, VillaMetaData::META_KEY_HOUSE_CODE, $houseCode);
+        update_post_meta($id, VillaMetaData::META_KEY_HOUSE_CODE, $villaData['houseCode']);
+
+        update_post_meta($id, VillaMetaData::META_KEY_CHECKSUM, $villaData);
+
+        // Get the latest update version and use that for new posts
+        update_post_meta(
+            $id,
+            VillaMetaData::META_KEY_UPDATE_VERSION,
+            (string) $this->getLatestUpdateVersion()
+        );
 
         foreach (VillaMetaData::getBasicInformationMetaDataKeys() as $apiKey => $metaDataKey) {
-            update_post_meta($id, $metaDataKey, $basicInfo[$apiKey]);
+            update_post_meta($id, $metaDataKey, $villaData['basicInfo'][$apiKey]);
         }
 
         update_post_meta(
             $id,
             VillaMetaData::META_KEY_MEDIA_PHOTOS,
-            $media[VillaMetaData::API_KEY_MEDIA_PHOTOS]
+            $villaData['media'][VillaMetaData::API_KEY_MEDIA_PHOTOS]
         );
 
         return $id;
@@ -186,6 +376,23 @@ class ExploreoVilla {
                 ]
             ],
         ];
+
+        $response = $this->getApiResponse($url, $data);
+
+        if (isset($response[0]['error'])) {
+
+            if ($response[0]['error'] === sprintf('HouseCode %s is unknown', strtolower($villaId))) {
+                throw new VillaNotFoundException($response[0]['error']);
+            }
+
+            throw new RuntimeException(
+                sprintf(
+                    'Error response from VFY when getting villa details with code %s. Error message: %s',
+                    $villaId,
+                    $response[0]['error']
+                )
+            );
+        }
 
         return $this->getApiResponse($url, $data)[0];
     }

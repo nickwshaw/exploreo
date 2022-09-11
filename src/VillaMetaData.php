@@ -5,6 +5,9 @@ namespace Exploreo;
 class VillaMetaData
 {
 
+    public const META_KEY_CHECKSUM = 'villa_checksum';
+    public const META_KEY_UPDATE_VERSION = 'villa_update_version';
+
     /**
      * List of houses
      */
