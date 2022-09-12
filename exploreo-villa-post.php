@@ -99,7 +99,7 @@ class ExploreoVilla {
                 where meta_key = "' . VillaMetaData::META_KEY_UPDATE_VERSION . '"
                 order by cast(meta_value as unsigned) desc limit 1
             ');
-            $this->latestUpdateVersion = (int) $result->meta_value;
+            $this->latestUpdateVersion = ($result) ? (int) $result->meta_value : 0;
         }
 
         return $this->latestUpdateVersion;
@@ -349,8 +349,15 @@ class ExploreoVilla {
             'data_format' => 'body',
         ]);
 
+        if ($response instanceof WP_Error) {
+            foreach ($response->get_error_messages() as $error) {
+                error_log($error);
+            }
+            throw new RuntimeException('Error making request to VFY with payload: ' . wp_json_encode($body));
+        }
+
         try {
-            $json = json_decode( $response['body'], true );
+            $json = json_decode($response['body'], true);
         } catch ( Exception $ex ) {
             $json = null;
         }
