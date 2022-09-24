@@ -38,6 +38,11 @@ class ExploreoVilla {
     private $apiUsername = VILLA_API_USERNAME;
 
     /**
+     * @var string
+     */
+    private $tablePrefix = TABLE_PREFIX;
+
+    /**
      * @var array
      */
     private $villaCodesInDb;
@@ -95,7 +100,7 @@ class ExploreoVilla {
     {
         if (is_null($this->latestUpdateVersion)) {
             $result = $this->wpdb->get_row('
-                select * from wp_postmeta
+                select * from ' . $this->tablePrefix . 'postmeta
                 where meta_key = "' . VillaMetaData::META_KEY_UPDATE_VERSION . '"
                 order by cast(meta_value as unsigned) desc limit 1
             ');
@@ -110,7 +115,7 @@ class ExploreoVilla {
         $start = microtime(true);
         // Get villas with lowest update version
         $results = $this->wpdb->get_results('
-            select * from wp_postmeta
+            select * from ' . $this->tablePrefix . 'postmeta
             where meta_key = "' . VillaMetaData::META_KEY_UPDATE_VERSION . '"
             order by cast(meta_value as unsigned) asc limit 100
         ');
@@ -123,14 +128,14 @@ class ExploreoVilla {
         foreach ($results as $row) {
             $checksum = $this->wpdb->get_col('
                 SELECT meta_value
-                from wp_postmeta
+                from ' . $this->tablePrefix . 'postmeta
                 where post_id = ' . $row->post_id . '
                 and meta_key = "villa_checksum"'
             );
 
             $houseCode = $this->wpdb->get_col('
                 SELECT meta_value
-                from wp_postmeta
+                from ' . $this->tablePrefix . 'postmeta
                 where post_id = ' . $row->post_id . '
                 and meta_key = "' . VillaMetaData::META_KEY_HOUSE_CODE . '"'
             );
@@ -143,7 +148,7 @@ class ExploreoVilla {
 
             $postsWithHouseCode = $this->wpdb->get_col('
                 SELECT meta_value
-                from wp_postmeta
+                from ' . $this->tablePrefix . 'postmeta
                 where meta_value = "' . $houseCode[0] . '"
                 and meta_key = "' . VillaMetaData::META_KEY_HOUSE_CODE . '"'
             );
@@ -206,9 +211,11 @@ class ExploreoVilla {
 //        }
         $count = 0;
 
-        $this->villaCodesInDb = $this->wpdb->get_col(
-            'SELECT meta_value from wp_postmeta WHERE meta_key = "' . VillaMetaData::META_KEY_HOUSE_CODE . '"'
-        );
+        $this->villaCodesInDb = $this->wpdb->get_col('
+            SELECT meta_value 
+            FROM ' . $this->tablePrefix . 'postmeta 
+            WHERE meta_key = "' . VillaMetaData::META_KEY_HOUSE_CODE . '"    
+        ');
 
         $villaCodesFromApi = [];
         foreach ($this->getListOfVillas() as $villa)
@@ -276,7 +283,7 @@ class ExploreoVilla {
             "post_title" => $villaData['basicInfo']['Name'],
             "post_content" => $villaData['description'],
         ];
-        wp_insert_post($postData);
+        wp_update_post($postData);
 
         update_post_meta($postId, VillaMetaData::META_KEY_CHECKSUM, $villaData);
 
