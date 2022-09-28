@@ -36,6 +36,7 @@ class VillaMetaData
     public const META_KEY_PROVINCE = 'villa_province';
     public const META_KEY_LATITUDE = 'villa_latitude';
     public const META_KEY_LONGITUDE = 'villa_longitude';
+    public const META_KEY_HOUSE_TYPE = 'villa_house_type';
 
     public const API_KEY_NAME = 'Name';
     public const API_KEY_MAX_NUMBER_OF_PERSONS = 'MaxNumberOfPersons';
@@ -56,6 +57,7 @@ class VillaMetaData
     public const API_KEY_PROVINCE = 'Province';
     public const API_KEY_LATITUDE = 'Latitude';
     public const API_KEY_LONGITUDE = 'Longitude';
+    public const API_KEY_HOUSE_TYPE = 'HouseType';
 
     /**
      * Description
@@ -111,4 +113,22 @@ class VillaMetaData
             self::API_KEY_LONGITUDE => self::META_KEY_LONGITUDE,
         ];
     }
+
+    public static function getMetaDataKeysForAlgoliaImport()
+    {
+        return [
+            self::META_KEY_CITY,
+            self::META_KEY_COUNTRY,
+            self::META_KEY_PROVINCE,
+            self::META_KEY_MAX_NUMBER_OF_PERSONS,
+            self::META_KEY_EXCEED_MAX_NUMBER_OF_BABIES,
+            self::META_KEY_MAX_NUMBER_OF_PETS,
+            self::META_KEY_NUMBER_OF_BEDROOMS,
+            self::META_KEY_NUMBER_OF_BATHROOMS,
+            self::META_KEY_NUMBER_OF_STARS,
+            self::META_KEY_LATITUDE,
+            self::META_KEY_LONGITUDE,
+        ];
+    }
+
 }

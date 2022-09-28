@@ -25,8 +25,13 @@ require_once __DIR__ . '/wp-cli.php';
 
 global $algolia;
 global $exploreoSearch;
+//var_dump($_ENV['ALGOLIA_APP_ID'], $_ENV['ALGOLIA_API_KEY']);
 $exploreoSearch = new AlgoliaSearchService(
     SearchClient::create($_ENV['ALGOLIA_APP_ID'], $_ENV['ALGOLIA_API_KEY'])
 );
 
 $algolia = SearchClient::create($_ENV['ALGOLIA_APP_ID'], $_ENV['ALGOLIA_API_KEY']);
+
+// Create a hook for villas index cron job
+//add_action('exploreo_villas_import', array($this, 'indexVillas'));
+

@@ -16,8 +16,8 @@ require_once('src/VillaMetaData.php');
 require_once('config.php');
 
 class ExploreoVilla {
-    public const VILLA_POST_TYPE = 'villas';
 
+    public const VILLA_POST_TYPE = 'villas';
 
     /**
      * @var ExploreoVilla
@@ -49,6 +49,11 @@ class ExploreoVilla {
 
     private $latestUpdateVersion;
 
+    /**
+     * @var array
+     */
+    private $houseTypes;
+
     private function __construct()
     {
 
@@ -78,14 +83,6 @@ class ExploreoVilla {
         });
 
         add_filter('cron_schedules', array($this, 'villaImportInterval'));
-
-        function example_add_cron_interval( $schedules ) {
-            $schedules['five_seconds'] = array(
-                'interval' => 5,
-                'display'  => esc_html__( 'Every Five Seconds' ), );
-            return $schedules;
-        }
-
     }
 
     public function villaImportInterval(array $schedules)
@@ -218,6 +215,7 @@ class ExploreoVilla {
         ');
 
         $villaCodesFromApi = [];
+
         foreach ($this->getListOfVillas() as $villa)
         {
 
@@ -227,7 +225,7 @@ class ExploreoVilla {
                 // Not interested in test villas
                 continue;
             }
-
+            // Check if villa already exits in DB
             if (in_array($villa['HouseCode'], $this->villaCodesInDb)) {
                 continue;
             }
@@ -262,6 +260,10 @@ class ExploreoVilla {
 
     private function prepareVillaPostData(array $villaDetails): array
     {
+        if (null === $this->houseTypes) {
+            $this->houseTypes = $this->getVillaTypes();
+        }
+
         $villaData = [];
         $villaData['houseCode'] = $villaDetails['HouseCode'];
         $villaData['basicInfo'] = $villaDetails[VillaMetaData::API_METHOD_BASIC_INFORMATION];
@@ -285,25 +287,13 @@ class ExploreoVilla {
         ];
         wp_update_post($postData);
 
-        update_post_meta($postId, VillaMetaData::META_KEY_CHECKSUM, $villaData);
-
-        foreach (VillaMetaData::getBasicInformationMetaDataKeys() as $apiKey => $metaDataKey) {
-            update_post_meta($postId, $metaDataKey, $villaData['basicInfo'][$apiKey]);
-        }
-
-        update_post_meta(
-            $postId,
-            VillaMetaData::META_KEY_MEDIA_PHOTOS,
-            $villaData['media'][VillaMetaData::API_KEY_MEDIA_PHOTOS]
-        );
+        $this->insertUpdateMetaData($postId, $villaData);
     }
 
 
     private function insertVillaPost(array $villaDetails): ?int
     {
         $villaData = $this->prepareVillaPostData($villaDetails);
-        //$checksum = serialize($villaData);
-        //error_log('checksum: ' . $checksum);
 
         $postData = [
             "post_title" => $villaData['basicInfo']['Name'],
@@ -314,11 +304,7 @@ class ExploreoVilla {
 
         $id = wp_insert_post($postData);
 
-        // Insert custom fields
-
         update_post_meta($id, VillaMetaData::META_KEY_HOUSE_CODE, $villaData['houseCode']);
-
-        update_post_meta($id, VillaMetaData::META_KEY_CHECKSUM, $villaData);
 
         // Get the latest update version and use that for new posts
         update_post_meta(
@@ -326,6 +312,19 @@ class ExploreoVilla {
             VillaMetaData::META_KEY_UPDATE_VERSION,
             (string) $this->getLatestUpdateVersion()
         );
+
+        $this->insertUpdateMetaData($id, $villaData);
+
+        return $id;
+    }
+
+    /**
+     * Metadata that needs an updating for both insert and update
+     * @param int $id
+     * @param array $villaData
+     */
+    private function insertUpdateMetaData(int $id, array $villaData) {
+        update_post_meta($id, VillaMetaData::META_KEY_CHECKSUM, $villaData);
 
         foreach (VillaMetaData::getBasicInformationMetaDataKeys() as $apiKey => $metaDataKey) {
             update_post_meta($id, $metaDataKey, $villaData['basicInfo'][$apiKey]);
@@ -337,10 +336,15 @@ class ExploreoVilla {
             $villaData['media'][VillaMetaData::API_KEY_MEDIA_PHOTOS]
         );
 
-        return $id;
+        update_post_meta(
+            $id,
+            VillaMetaData::META_KEY_HOUSE_TYPE,
+            $this->houseTypes[$villaData['basicInfo'][VillaMetaData::API_KEY_HOUSE_TYPE]]
+        );
+
     }
 
-    private function getApiResponse(string $url, array $body): array
+    private function getApiResponse(string $url, array $body = []): array
     {
         $response = wp_remote_post($url, [
             'body' => wp_json_encode($body),
@@ -352,7 +356,7 @@ class ExploreoVilla {
             'redirection' => 5,
             'blocking'    => true,
             'httpversion' => '1.0',
-            'sslverify'   => false, //TODO cahnge
+            'sslverify'   => false, //TODO change
             'data_format' => 'body',
         ]);
 
@@ -370,6 +374,29 @@ class ExploreoVilla {
         }
 
         return $json['result'];
+    }
+
+    private function getVillaTypes(): array
+    {
+        $result =  $this->getApiResponse(
+            $this->getApiUrl('referencehousetypesv1'),
+            $this->getBasePayLoad('ReferenceHouseTypesV1')
+        );
+
+        foreach ($result as $record) {
+            $translations = [];
+            foreach ($record['Description'] as $description) {
+                $translations[$description['Language']] = $description['Description'];
+            }
+            $houseTypes[$record['Id']] = $translations;
+        }
+
+        return $houseTypes;
+    }
+
+    private function getApiUrl(string $action): string
+    {
+        return 'https://listofhousesv1.villaforyou.biz/cgi/jsonrpc-partner/' . $action;
     }
 
     private function getVillaDetails(string $villaId): array
@@ -413,19 +440,22 @@ class ExploreoVilla {
 
     private function getListOfVillas(): array
     {
-        $data = [
+        $url = 'https://listofhousesv1.villaforyou.biz/cgi/jsonrpc-partner/listofhousesv1';
+
+        return $this->getApiResponse($url, $this->getBasePayLoad('ListOfHousesV1'));
+    }
+
+    private function getBasePayLoad(string $method): array
+    {
+        return  [
             'jsonrpc' => '2.0',
-            'method' => 'ListOfHousesV1',
+            'method' => $method,
             'params' => [
                 'PartnerCode' => $this->apiUsername,
                 'PartnerPassword' => $this->apiPassword
             ],
-            'id' => '38114532'
         ];
 
-        $url = 'https://listofhousesv1.villaforyou.biz/cgi/jsonrpc-partner/listofhousesv1';
-
-        return $this->getApiResponse($url, $data);
     }
 
     public function createVillaPostType()
