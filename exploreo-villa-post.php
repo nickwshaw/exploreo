@@ -14,6 +14,7 @@ use Exploreo\Exception\VillaNotFoundException;
 
 require_once('src/VillaMetaData.php');
 require_once('config.php');
+require_once('includes/url-rewrite.php');
 
 class ExploreoVilla {
 
