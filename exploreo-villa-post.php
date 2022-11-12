@@ -463,7 +463,7 @@ class ExploreoVilla {
     {
         // Set UI labels for Custom Post Type
         $labels = array(
-            'name'                => _x( 'Villas', 'Post Type General Name', 'exploreo-villa-post' ),
+            'name'                => _x( 'Holiday Homes', 'Post Type General Name', 'exploreo-villa-post' ),
             'singular_name'       => _x( 'Villa', 'Post Type Singular Name', 'exploreo-villa-post' ),
             'menu_name'           => __( 'Villas', 'exploreo-villa-post' ),
             'parent_item_colon'   => __( 'Parent Villa', 'exploreo-villa-post' ),
