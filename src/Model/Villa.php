@@ -38,6 +38,13 @@ class Villa
 
     public function getImages(): array
     {
+        if (!$this->images) {
+            throw new \RuntimeException(sprintf(
+                'Error getting images for villa id %d %s',
+                $this->post->ID,
+                var_export($this->postMeta, true)
+            ));
+        }
         return $this->images;
     }
 
@@ -59,9 +66,10 @@ class Villa
         return unserialize($this->postMeta[VillaMetaData::META_KEY_HOUSE_TYPE][0])[$language];
     }
 
-    public function getMetaByKey(string $key): string
+    public function getMetaByKey(string $key): ?string
     {
-        return $this->postMeta[$key][0];
+        $metaData = $this->postMeta[$key][0];
+        return $metaData;
     }
 
 }

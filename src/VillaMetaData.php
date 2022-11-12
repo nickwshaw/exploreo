@@ -126,8 +126,6 @@ class VillaMetaData
             self::META_KEY_NUMBER_OF_BEDROOMS,
             self::META_KEY_NUMBER_OF_BATHROOMS,
             self::META_KEY_NUMBER_OF_STARS,
-            self::META_KEY_LATITUDE,
-            self::META_KEY_LONGITUDE,
         ];
     }
 
