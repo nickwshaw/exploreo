@@ -32,8 +32,11 @@ class VillaMetaData
     public const META_KEY_NUMBER_OF_STARS = 'villa_number_of_stars';
     public const META_KEY_DIMENSION_M2 = 'villa_dimension_m2';
     public const META_KEY_CITY = 'villa_city';
+    public const META_KEY_CITY_SLUG = 'villa_city_slug';
     public const META_KEY_COUNTRY = 'villa_country';
+    public const META_KEY_COUNTRY_SLUG = 'villa_country_slug';
     public const META_KEY_PROVINCE = 'villa_province';
+    public const META_KEY_PROVINCE_SLUG = 'villa_province_slug';
     public const META_KEY_LATITUDE = 'villa_latitude';
     public const META_KEY_LONGITUDE = 'villa_longitude';
     public const META_KEY_HOUSE_TYPE = 'villa_house_type';

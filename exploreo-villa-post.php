@@ -15,6 +15,7 @@ use Exploreo\Exception\VillaNotFoundException;
 require_once('src/VillaMetaData.php');
 require_once('config.php');
 require_once('includes/url-rewrite.php');
+require_once('includes/archive-page.php');
 
 class ExploreoVilla {
 
@@ -331,12 +332,32 @@ class ExploreoVilla {
             update_post_meta($id, $metaDataKey, $villaData['basicInfo'][$apiKey]);
         }
 
+        // URL slugs
+        $countries = [
+            'AT' => 'austria',
+            'BE' => 'belgium',
+            'FR' => 'france',
+            'NL' => 'netherlands'
+        ];
+
+        $countrySlug = $countries[$villaData['basicInfo'][VillaMetaData::API_KEY_COUNTRY]] ?: 'country';
+
+        update_post_meta($id, VillaMetaData::META_KEY_COUNTRY_SLUG, $countrySlug);
+
+        $citySlug = sanitize_title($villaData['basicInfo'][VillaMetaData::API_KEY_CITY]);
+        update_post_meta($id, VillaMetaData::META_KEY_CITY_SLUG, $citySlug);
+
+        $provinceSlug = sanitize_title($villaData['basicInfo'][VillaMetaData::API_KEY_PROVINCE]);
+        update_post_meta($id, VillaMetaData::META_KEY_PROVINCE_SLUG, $provinceSlug);
+
+        // Photos
         update_post_meta(
             $id,
             VillaMetaData::META_KEY_MEDIA_PHOTOS,
             $villaData['media'][VillaMetaData::API_KEY_MEDIA_PHOTOS]
         );
 
+        // House Type
         update_post_meta(
             $id,
             VillaMetaData::META_KEY_HOUSE_TYPE,
@@ -494,7 +515,7 @@ class ExploreoVilla {
             'menu_position'       => 5,
             'can_export'          => true,
             'has_archive'         => true,
-            'rewrite'             => ['slug' => 'holiday-home'],
+            'rewrite'             => ['slug' => 'holiday-homes/%country%/%province%/%city%'],
             'exclude_from_search' => false,
             'publicly_queryable'  => true,
             'capability_type'     => 'post',
